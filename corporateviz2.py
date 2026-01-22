@@ -125,10 +125,7 @@ class CorporateViz:
     def plot_bar(self, df, x_col, y_col, title, subtitle=None, 
                  custom_colors=None, font_dict=None, gradient=False, 
                  value_formatter=None, custom_labels=None, show_axis_scale=True, figsize=(10, 6)):
-        """
-        Vertical Bar Chart.
-        :param custom_labels: List of strings to display on top of bars (overrides default values).
-        """
+        """Vertical Bar Chart."""
         fig, ax = plt.subplots(figsize=figsize, facecolor=self.bg_color)
         ax = self._setup_axis(ax, grid='y')
         
@@ -147,25 +144,20 @@ class CorporateViz:
             self._style_axis_labels(ax, axis='y', font_dict=font_dict, style_key='value_axis_style') 
             self._apply_formatter(ax, axis='y', formatter=value_formatter)
 
-        # Labels
         fd = font_dict or {}
         val_style = {'fontsize': 9, 'color': self.palette[0], 'ha': 'center'}
         val_style.update(fd.get('value_label', {}))
         
-        # Determine labels: Use custom list if provided, else use auto-calculated values
         if custom_labels is not None:
             labels_to_use = custom_labels
         else:
-            labels_to_use = [None] * len(bars) # Placeholder to trigger auto-calculation logic
+            labels_to_use = [None] * len(bars)
 
         for i, bar in enumerate(bars):
             height = bar.get_height()
-            
-            # 1. Choose Text
             if labels_to_use[i] is not None:
                 label_text = str(labels_to_use[i])
             else:
-                # Auto-calculate
                 label_text = f'{height:,.0f}'
                 if value_formatter and isinstance(value_formatter, str):
                     try: label_text = value_formatter.format(x=height)
@@ -181,10 +173,7 @@ class CorporateViz:
     def plot_barh(self, df, x_col, y_col, title, subtitle=None, 
                   custom_colors=None, font_dict=None, gradient=False, 
                   value_formatter=None, custom_labels=None, show_axis_scale=True, figsize=(10, 6)):
-        """
-        Horizontal Bar Chart.
-        :param custom_labels: List of strings to display next to bars.
-        """
+        """Horizontal Bar Chart."""
         fig, ax = plt.subplots(figsize=figsize, facecolor=self.bg_color)
         ax = self._setup_axis(ax, grid='x')
         
@@ -203,7 +192,6 @@ class CorporateViz:
             self._style_axis_labels(ax, axis='x', font_dict=font_dict, style_key='value_axis_style') 
             self._apply_formatter(ax, axis='x', formatter=value_formatter)
 
-        # Labels
         fd = font_dict or {}
         val_style = {'fontsize': 9, 'color': self.palette[0], 'va': 'center'}
         val_style.update(fd.get('value_label', {}))
@@ -215,7 +203,6 @@ class CorporateViz:
 
         for i, bar in enumerate(bars):
             width = bar.get_width()
-            
             if labels_to_use[i] is not None:
                 label_text = str(labels_to_use[i])
             else:
@@ -232,8 +219,12 @@ class CorporateViz:
         return fig, ax
 
     def plot_stacked_bar(self, df, x_col, stack_cols, title, subtitle=None, 
-                         font_dict=None, show_axis_scale=True, figsize=(10, 6)):
-        """Vertical Stacked Bar."""
+                         font_dict=None, show_axis_scale=True, value_formatter=None, 
+                         show_total_labels=True, figsize=(10, 6)):
+        """
+        Vertical Stacked Bar. 
+        :param show_total_labels: Boolean. If True, shows the Sum at the top of the stack.
+        """
         fig, ax = plt.subplots(figsize=figsize, facecolor=self.bg_color)
         ax = self._setup_axis(ax, grid='y')
         
@@ -251,13 +242,25 @@ class CorporateViz:
             ax.spines['left'].set_visible(False)
             ax.grid(False, axis='y')
 
-        fd = font_dict or {}
-        total_style = {'fontsize': 9, 'fontweight': 'bold', 'color': self.palette[0]}
-        total_style.update(fd.get('value_label', {}))
-        
-        for x, total in zip(x_data, bottom_vals):
-            ax.text(x, total + (max(bottom_vals)*0.01), f'{total:,.0f}', 
-                    ha='center', va='bottom', **total_style)
+        self._style_axis_labels(ax, axis='x', font_dict=font_dict, style_key='axis_label') 
+        if show_axis_scale:
+            self._style_axis_labels(ax, axis='y', font_dict=font_dict, style_key='value_axis_style') 
+            self._apply_formatter(ax, axis='y', formatter=value_formatter)
+
+        # Draw Totals ONLY if requested
+        if show_total_labels:
+            fd = font_dict or {}
+            total_style = {'fontsize': 9, 'fontweight': 'bold', 'color': self.palette[0]}
+            total_style.update(fd.get('value_label', {}))
+            
+            for x, total in zip(x_data, bottom_vals):
+                label_text = f'{total:,.0f}'
+                if value_formatter and isinstance(value_formatter, str):
+                    try: label_text = value_formatter.format(x=total)
+                    except: pass
+                
+                ax.text(x, total + (max(bottom_vals)*0.01), label_text, 
+                        ha='center', va='bottom', **total_style)
 
         ax.legend(frameon=False, loc='upper left', bbox_to_anchor=(0, 1), ncol=len(stack_cols))
         self._apply_titles(ax, title, subtitle, font_dict)
@@ -267,8 +270,12 @@ class CorporateViz:
         return fig, ax
 
     def plot_stacked_barh(self, df, y_col, stack_cols, title, subtitle=None, 
-                          font_dict=None, show_axis_scale=True, figsize=(10, 6)):
-        """Horizontal Stacked Bar."""
+                          font_dict=None, show_axis_scale=True, value_formatter=None, 
+                          show_total_labels=True, figsize=(10, 6)):
+        """
+        Horizontal Stacked Bar.
+        :param show_total_labels: Boolean. If True, shows the Sum at the end of the stack.
+        """
         fig, ax = plt.subplots(figsize=figsize, facecolor=self.bg_color)
         ax = self._setup_axis(ax, grid='x')
         
@@ -286,13 +293,24 @@ class CorporateViz:
             ax.spines['bottom'].set_visible(False)
             ax.grid(False, axis='x')
 
-        fd = font_dict or {}
-        total_style = {'fontsize': 9, 'fontweight': 'bold', 'color': self.palette[0]}
-        total_style.update(fd.get('value_label', {}))
-        
-        for y, total in zip(y_data, left_vals):
-            ax.text(total + (max(left_vals)*0.01), y, f' {total:,.0f}', 
-                    ha='left', va='center', **total_style)
+        self._style_axis_labels(ax, axis='y', font_dict=font_dict, style_key='axis_label') 
+        if show_axis_scale:
+            self._style_axis_labels(ax, axis='x', font_dict=font_dict, style_key='value_axis_style') 
+            self._apply_formatter(ax, axis='x', formatter=value_formatter)
+
+        if show_total_labels:
+            fd = font_dict or {}
+            total_style = {'fontsize': 9, 'fontweight': 'bold', 'color': self.palette[0]}
+            total_style.update(fd.get('value_label', {}))
+            
+            for y, total in zip(y_data, left_vals):
+                label_text = f'{total:,.0f}'
+                if value_formatter and isinstance(value_formatter, str):
+                    try: label_text = value_formatter.format(x=total)
+                    except: pass
+                    
+                ax.text(total + (max(left_vals)*0.01), y, label_text, 
+                        ha='left', va='center', **total_style)
 
         ax.legend(frameon=False, loc='upper left', bbox_to_anchor=(0, 1), ncol=len(stack_cols))
         self._apply_titles(ax, title, subtitle, font_dict)
