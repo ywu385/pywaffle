@@ -179,3 +179,45 @@ fig, ax = viz.plot_stacked_barh(
     subtitle="Q4 delivered highest total volume"
 )
 plt.show()
+
+
+# 1. Define Font Dict with NEW 'value_axis_style' key
+my_fonts = {
+    'title': {'fontsize': 20},
+    
+    # Left Axis (Categories: "Sales", "Ops")
+    'axis_label': {
+        'fontsize': 12, 
+        'fontweight': 'bold',
+        'color': '#2C3E50'
+    },
+    
+    # Bottom Axis (Numbers: $0, $200, $400)
+    'value_axis_style': {
+        'fontsize': 10,
+        'style': 'italic',
+        'color': '#7F8C8D' # Make numbers subtle gray
+    }
+}
+
+# 2. Create Data
+df_budget = pd.DataFrame({
+    'Dept': ['Sales', 'Marketing', 'R&D'],
+    'Budget': [50000, 35000, 62000]
+})
+
+# 3. Plot with Formatting
+fig, ax = viz.plot_barh(
+    df=df_budget, 
+    x_col='Budget', 
+    y_col='Dept', 
+    title="Q4 Budget",
+    
+    # A. Format the numbers (Add Dollar Sign + Commas)
+    value_formatter='${x:,.0f}', 
+    
+    # B. Apply the font styles
+    font_dict=my_fonts 
+)
+
+plt.show()
