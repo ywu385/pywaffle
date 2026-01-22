@@ -11,17 +11,11 @@ class CorporateViz:
     def __init__(self, palette=None, bg_color='#FAFAFA', font_family='sans-serif'):
         """
         Initialize the corporate visualization style.
-        
-        :param palette: List of hex codes. [0]=Main Text/Dark, [1]=Primary Data, [2]=Secondary...
-        :param bg_color: Background color (hex). Default '#FAFAFA' (Off-White).
-        :param font_family: Font family name (e.g., 'Arial', 'Roboto', 'DejaVu Sans').
         """
-        # Default fallback palette (Blue/Grey theme)
         self.palette = palette if palette else ['#0F294A', '#1B9CFC', '#5D6D7E', '#AED6F1', '#D4E6F1']
         self.bg_color = bg_color
         self.font = font_family
         
-        # Global Matplotlib Settings
         plt.rcParams['font.family'] = self.font
         plt.rcParams['text.color'] = self.palette[0]
         plt.rcParams['axes.labelcolor'] = self.palette[0]
@@ -32,12 +26,11 @@ class CorporateViz:
     # INTERNAL HELPERS
     # -------------------------------------------------------------------------
     def _get_colors(self, n, custom_colors=None):
-        if custom_colors:
-            return custom_colors
+        if custom_colors: return custom_colors
         return [self.palette[i % len(self.palette)] for i in range(n)]
 
     def _setup_axis(self, ax, grid='y'):
-        """Cleans spines (borders) and sets grid."""
+        """Cleans spines and sets grid."""
         ax.set_facecolor(self.bg_color)
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
@@ -59,8 +52,6 @@ class CorporateViz:
         for bar in bars:
             base_color = bar.get_facecolor() 
             bar.set_facecolor("none") 
-            
-            # Mix 50% white for gradient top
             light_color = [x + (1 - x) * 0.5 for x in base_color[:3]] 
             cmap = mcolors.LinearSegmentedColormap.from_list("grad", [base_color, light_color])
             
@@ -71,24 +62,31 @@ class CorporateViz:
                 ax.imshow(gradient_data.T, extent=[x, x+w, y, y+h], aspect='auto', cmap=cmap, zorder=3)
             else:
                 ax.imshow(gradient_data, extent=[x, x+w, y, y+h], aspect='auto', cmap=cmap, zorder=3)
-                
             ax.add_patch(patches.Rectangle((x, y), w, h, fill=False, edgecolor=base_color, lw=0.5, zorder=4))
 
     def _style_axis_labels(self, ax, axis='x', font_dict=None, style_key='axis_label'):
-        """Applies specific font settings to axis ticks."""
+        """Robustly applies font settings to axis ticks."""
         fd = font_dict or {}
         style = fd.get(style_key, {})
         if not style: return
 
-        labels = ax.get_xticklabels() if axis == 'x' else ax.get_yticklabels()
-        for label in labels:
-            if 'fontsize' in style: label.set_fontsize(style['fontsize'])
-            if 'fontweight' in style: label.set_fontweight(style['fontweight'])
-            if 'color' in style: label.set_color(style['color'])
-            if 'family' in style: label.set_family(style['family'])
+        tick_params = {}
+        if 'fontsize' in style: tick_params['labelsize'] = style['fontsize']
+        if 'color' in style: tick_params['labelcolor'] = style['color']
+        if 'rotation' in style: tick_params['rotation'] = style['rotation']
+        
+        if axis == 'x': ax.tick_params(axis='x', **tick_params)
+        else: ax.tick_params(axis='y', **tick_params)
+
+        if 'fontweight' in style or 'family' in style:
+            plt.draw() 
+            labels = ax.get_xticklabels() if axis == 'x' else ax.get_yticklabels()
+            for label in labels:
+                if 'fontweight' in style: label.set_fontweight(style['fontweight'])
+                if 'family' in style: label.set_family(style['family'])
 
     def _apply_formatter(self, ax, axis, formatter):
-        """Formats the numbers on the axis (e.g. currency)."""
+        """Formats the numbers on the axis."""
         ax_obj = ax.xaxis if axis == 'x' else ax.yaxis
         if formatter:
             if isinstance(formatter, str):
@@ -101,13 +99,11 @@ class CorporateViz:
         fd = font_dict or {}
         t_style = {'fontsize': 16, 'fontweight': 'bold', 'color': self.palette[0]}
         s_style = {'fontsize': 11, 'color': '#555555'}
-        
         t_style.update(fd.get('title', {}))
         s_style.update(fd.get('subtitle', {}))
 
         t_y = t_style.pop('y', 1.12) 
         s_y = s_style.pop('y', 1.06) 
-
         ax.text(x=0, y=t_y, s=title, transform=ax.transAxes, ha='left', va='top', **t_style)
         if subtitle:
             ax.text(x=0, y=s_y, s=subtitle, transform=ax.transAxes, ha='left', va='top', **s_style)
@@ -128,8 +124,11 @@ class CorporateViz:
 
     def plot_bar(self, df, x_col, y_col, title, subtitle=None, 
                  custom_colors=None, font_dict=None, gradient=False, 
-                 value_formatter=None, figsize=(10, 6)):
-        """Vertical Bar Chart."""
+                 value_formatter=None, custom_labels=None, show_axis_scale=True, figsize=(10, 6)):
+        """
+        Vertical Bar Chart.
+        :param custom_labels: List of strings to display on top of bars (overrides default values).
+        """
         fig, ax = plt.subplots(figsize=figsize, facecolor=self.bg_color)
         ax = self._setup_axis(ax, grid='y')
         
@@ -138,22 +137,39 @@ class CorporateViz:
         
         if gradient: self._apply_gradient(ax, bars, 'vertical')
         
-        # Axis Styling
-        self._style_axis_labels(ax, axis='x', font_dict=font_dict, style_key='axis_label') # Categories
-        self._style_axis_labels(ax, axis='y', font_dict=font_dict, style_key='value_axis_style') # Numbers
-        self._apply_formatter(ax, axis='y', formatter=value_formatter)
+        if not show_axis_scale:
+            ax.yaxis.set_visible(False)
+            ax.spines['left'].set_visible(False)
+            ax.grid(False, axis='y')
+        
+        self._style_axis_labels(ax, axis='x', font_dict=font_dict, style_key='axis_label') 
+        if show_axis_scale:
+            self._style_axis_labels(ax, axis='y', font_dict=font_dict, style_key='value_axis_style') 
+            self._apply_formatter(ax, axis='y', formatter=value_formatter)
 
-        # Value Labels
+        # Labels
         fd = font_dict or {}
         val_style = {'fontsize': 9, 'color': self.palette[0], 'ha': 'center'}
         val_style.update(fd.get('value_label', {}))
         
-        for bar in bars:
+        # Determine labels: Use custom list if provided, else use auto-calculated values
+        if custom_labels is not None:
+            labels_to_use = custom_labels
+        else:
+            labels_to_use = [None] * len(bars) # Placeholder to trigger auto-calculation logic
+
+        for i, bar in enumerate(bars):
             height = bar.get_height()
-            label_text = f'{height:,.0f}'
-            if value_formatter and isinstance(value_formatter, str):
-                try: label_text = value_formatter.format(x=height)
-                except: pass
+            
+            # 1. Choose Text
+            if labels_to_use[i] is not None:
+                label_text = str(labels_to_use[i])
+            else:
+                # Auto-calculate
+                label_text = f'{height:,.0f}'
+                if value_formatter and isinstance(value_formatter, str):
+                    try: label_text = value_formatter.format(x=height)
+                    except: pass
             
             ax.text(bar.get_x() + bar.get_width()/2., height + (df[y_col].max()*0.01),
                     label_text, va='bottom', **val_style)
@@ -164,8 +180,11 @@ class CorporateViz:
 
     def plot_barh(self, df, x_col, y_col, title, subtitle=None, 
                   custom_colors=None, font_dict=None, gradient=False, 
-                  value_formatter=None, figsize=(10, 6)):
-        """Horizontal Bar Chart."""
+                  value_formatter=None, custom_labels=None, show_axis_scale=True, figsize=(10, 6)):
+        """
+        Horizontal Bar Chart.
+        :param custom_labels: List of strings to display next to bars.
+        """
         fig, ax = plt.subplots(figsize=figsize, facecolor=self.bg_color)
         ax = self._setup_axis(ax, grid='x')
         
@@ -174,22 +193,36 @@ class CorporateViz:
         
         if gradient: self._apply_gradient(ax, bars, 'horizontal')
         
-        # Axis Styling
-        self._style_axis_labels(ax, axis='y', font_dict=font_dict, style_key='axis_label') # Categories
-        self._style_axis_labels(ax, axis='x', font_dict=font_dict, style_key='value_axis_style') # Numbers
-        self._apply_formatter(ax, axis='x', formatter=value_formatter)
+        if not show_axis_scale:
+            ax.xaxis.set_visible(False)
+            ax.spines['bottom'].set_visible(False)
+            ax.grid(False, axis='x')
 
-        # Value Labels
+        self._style_axis_labels(ax, axis='y', font_dict=font_dict, style_key='axis_label') 
+        if show_axis_scale:
+            self._style_axis_labels(ax, axis='x', font_dict=font_dict, style_key='value_axis_style') 
+            self._apply_formatter(ax, axis='x', formatter=value_formatter)
+
+        # Labels
         fd = font_dict or {}
         val_style = {'fontsize': 9, 'color': self.palette[0], 'va': 'center'}
         val_style.update(fd.get('value_label', {}))
 
-        for bar in bars:
+        if custom_labels is not None:
+            labels_to_use = custom_labels
+        else:
+            labels_to_use = [None] * len(bars)
+
+        for i, bar in enumerate(bars):
             width = bar.get_width()
-            label_text = f'{width:,.0f}'
-            if value_formatter and isinstance(value_formatter, str):
-                try: label_text = value_formatter.format(x=width)
-                except: pass
+            
+            if labels_to_use[i] is not None:
+                label_text = str(labels_to_use[i])
+            else:
+                label_text = f'{width:,.0f}'
+                if value_formatter and isinstance(value_formatter, str):
+                    try: label_text = value_formatter.format(x=width)
+                    except: pass
 
             ax.text(width + (df[x_col].max() * 0.02), bar.get_y() + bar.get_height()/2, 
                     label_text, **val_style)
@@ -199,7 +232,7 @@ class CorporateViz:
         return fig, ax
 
     def plot_stacked_bar(self, df, x_col, stack_cols, title, subtitle=None, 
-                         font_dict=None, figsize=(10, 6)):
+                         font_dict=None, show_axis_scale=True, figsize=(10, 6)):
         """Vertical Stacked Bar."""
         fig, ax = plt.subplots(figsize=figsize, facecolor=self.bg_color)
         ax = self._setup_axis(ax, grid='y')
@@ -213,7 +246,11 @@ class CorporateViz:
                    color=colors[i], zorder=3, width=0.6)
             bottom_vals += df[col].values
 
-        # Total Labels
+        if not show_axis_scale:
+            ax.yaxis.set_visible(False)
+            ax.spines['left'].set_visible(False)
+            ax.grid(False, axis='y')
+
         fd = font_dict or {}
         total_style = {'fontsize': 9, 'fontweight': 'bold', 'color': self.palette[0]}
         total_style.update(fd.get('value_label', {}))
@@ -230,7 +267,7 @@ class CorporateViz:
         return fig, ax
 
     def plot_stacked_barh(self, df, y_col, stack_cols, title, subtitle=None, 
-                          font_dict=None, figsize=(10, 6)):
+                          font_dict=None, show_axis_scale=True, figsize=(10, 6)):
         """Horizontal Stacked Bar."""
         fig, ax = plt.subplots(figsize=figsize, facecolor=self.bg_color)
         ax = self._setup_axis(ax, grid='x')
@@ -243,6 +280,11 @@ class CorporateViz:
             ax.barh(y_data, df[col], left=left_vals, label=col, 
                     color=colors[i], zorder=3, height=0.6)
             left_vals += df[col].values
+
+        if not show_axis_scale:
+            ax.xaxis.set_visible(False)
+            ax.spines['bottom'].set_visible(False)
+            ax.grid(False, axis='x')
 
         fd = font_dict or {}
         total_style = {'fontsize': 9, 'fontweight': 'bold', 'color': self.palette[0]}
@@ -271,7 +313,6 @@ class CorporateViz:
         ax.plot(x, y, color=self.palette[1], linewidth=2.5, zorder=3)
         
         if gradient:
-            # Simple fade effect using multiple overlapping fills
             for i in range(20):
                 ax.fill_between(x, y, y2=0, color=self.palette[1], alpha=0.03*(1-i/20), zorder=2)
         else:
