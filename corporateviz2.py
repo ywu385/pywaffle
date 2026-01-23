@@ -221,10 +221,7 @@ class CorporateViz:
     def plot_stacked_bar(self, df, x_col, stack_cols, title, subtitle=None, 
                          font_dict=None, show_axis_scale=True, value_formatter=None, 
                          show_total_labels=True, figsize=(10, 6)):
-        """
-        Vertical Stacked Bar. 
-        :param show_total_labels: Boolean. If True, shows the Sum at the top of the stack.
-        """
+        """Vertical Stacked Bar."""
         fig, ax = plt.subplots(figsize=figsize, facecolor=self.bg_color)
         ax = self._setup_axis(ax, grid='y')
         
@@ -247,7 +244,6 @@ class CorporateViz:
             self._style_axis_labels(ax, axis='y', font_dict=font_dict, style_key='value_axis_style') 
             self._apply_formatter(ax, axis='y', formatter=value_formatter)
 
-        # Draw Totals ONLY if requested
         if show_total_labels:
             fd = font_dict or {}
             total_style = {'fontsize': 9, 'fontweight': 'bold', 'color': self.palette[0]}
@@ -272,10 +268,7 @@ class CorporateViz:
     def plot_stacked_barh(self, df, y_col, stack_cols, title, subtitle=None, 
                           font_dict=None, show_axis_scale=True, value_formatter=None, 
                           show_total_labels=True, figsize=(10, 6)):
-        """
-        Horizontal Stacked Bar.
-        :param show_total_labels: Boolean. If True, shows the Sum at the end of the stack.
-        """
+        """Horizontal Stacked Bar."""
         fig, ax = plt.subplots(figsize=figsize, facecolor=self.bg_color)
         ax = self._setup_axis(ax, grid='x')
         
@@ -319,42 +312,29 @@ class CorporateViz:
         plt.tight_layout()
         return fig, ax
 
-    def plot_timeseries(self, df, date_col, value_col, title, subtitle=None, 
-                        annotations=None, gradient=False, figsize=(12, 6), font_dict=None):
-        """Standard Time Series."""
-        fig, ax = plt.subplots(figsize=figsize, facecolor=self.bg_color)
-        ax = self._setup_axis(ax, grid='y')
-        
-        df[date_col] = pd.to_datetime(df[date_col])
-        x, y = df[date_col].values, df[value_col].values
-        
-        ax.plot(x, y, color=self.palette[1], linewidth=2.5, zorder=3)
-        
-        if gradient:
-            for i in range(20):
-                ax.fill_between(x, y, y2=0, color=self.palette[1], alpha=0.03*(1-i/20), zorder=2)
-        else:
-            ax.fill_between(x, y, color=self.palette[1], alpha=0.1, zorder=2)
-            
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
-        self._apply_titles(ax, title, subtitle, font_dict)
-        if annotations:
-            for note in annotations: self._add_arrow_annotation(ax, note)
-        plt.tight_layout()
-        return fig, ax
-
-    def plot_dual_timeseries(self, df, date_col, col1, col2, title, subtitle=None, 
-                             annotations=None, figsize=(12, 6), font_dict=None):
-        """Comparing two time series."""
+    def plot_multiline_timeseries(self, df, date_col, value_cols, title, subtitle=None, 
+                                  annotations=None, figsize=(12, 6), font_dict=None):
+        """
+        Multiple Line Time Series.
+        :param value_cols: List of column names to plot.
+        """
         fig, ax = plt.subplots(figsize=figsize, facecolor=self.bg_color)
         ax = self._setup_axis(ax, grid='y')
         df[date_col] = pd.to_datetime(df[date_col])
         
-        ax.plot(df[date_col], df[col1], color=self.palette[1], linewidth=3, label=col1, zorder=3)
-        ax.plot(df[date_col], df[col2], color='#95A5A6', linewidth=2, linestyle='--', label=col2, zorder=3)
+        colors = self._get_colors(len(value_cols))
+        
+        # Loop through columns and plot lines
+        for i, col in enumerate(value_cols):
+            ax.plot(df[date_col], df[col], color=colors[i], linewidth=2.5, label=col, zorder=3)
         
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
         ax.legend(frameon=False, loc='upper right')
+        
+        # --- FIXED: Apply Axis Font Styling ---
+        self._style_axis_labels(ax, axis='x', font_dict=font_dict, style_key='axis_label')
+        self._style_axis_labels(ax, axis='y', font_dict=font_dict, style_key='value_axis_style')
+
         self._apply_titles(ax, title, subtitle, font_dict)
         if annotations:
             for note in annotations: self._add_arrow_annotation(ax, note)
